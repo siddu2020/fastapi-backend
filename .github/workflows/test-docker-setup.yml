@@ -1,0 +1,70 @@
+---
+name: Test fastapi-backend Docker Setup
+
+on:
+  push:
+    branches: [ feature/dockerize-and-ci-cb85afc1 ]
+  pull_request:
+    branches: [ feature/dockerize-and-ci-cb85afc1 ]
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  test-docker-setup:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        ref: feature/dockerize-and-ci-cb85afc1
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Make run.sh executable
+      run: chmod +x run.sh
+    
+    - name: Run Docker setup
+      run: ./run.sh
+      timeout-minutes: 10
+    
+    - name: Wait for services to be ready
+      run: |
+        echo "Waiting for services to start..."
+        sleep 30
+        
+        # Check if containers are running
+        echo "Checking container status:"
+        docker ps
+        
+        echo "Checking networks:"
+        docker network ls
+
+    - name: Show application logs
+      if: always()
+      run: |
+        echo "=== Application Logs ==="
+        docker logs app || echo "No app logs available"
+        
+        echo "=== Database Logs ==="
+        docker logs db || echo "No DB logs available"
+    
+    - name: Show container status
+      if: always()
+      run: |
+        echo "=== Final Container Status ==="
+        docker ps -a
+        
+        echo "=== Network Status ==="
+        docker network ls
+        
+        echo "=== Volume Status ==="
+        docker volume ls
+    
+    - name: Cleanup
+      if: always()
+      run: |
+        echo "Cleaning up containers and networks..."
+        docker-compose down -v --remove-orphans || true
+        docker system prune -f || true
+---
